@@ -1,0 +1,36 @@
+name: email-triage-env
+version: "1.0"
+entrypoint: app:app
+endpoints:
+  - /reset
+  - /step
+  - /state
+observation_space:
+  type: object
+  description: Current email observation and inbox progress summary.
+  fields:
+    current_index: integer
+    total_emails: integer
+    current_email:
+      type: object
+      nullable: true
+    inbox_summary:
+      type: array
+      items:
+        type: object
+    done: boolean
+    task: string
+action_space:
+  type: object
+  description: Agent action for the current email.
+  fields:
+    classification: string
+    reply: string
+    follow_up: boolean
+reward_range:
+  min: -1.0
+  max: 1.0
+tasks:
+  easy: Triage a small curated subset of straightforward emails.
+  medium: Triage a moderate subset with mixed intents and priorities.
+  hard: Triage a larger subset containing ambiguous or urgent messages.

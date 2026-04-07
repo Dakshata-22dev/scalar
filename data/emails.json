@@ -1,0 +1,152 @@
+[
+  {
+    "id": 1,
+    "subject": "Invoice overdue for March web hosting",
+    "body": "Hi team, our March hosting invoice is now five days overdue. Please process payment today to avoid service interruption.",
+    "sender": "billing@cloudvendor.com",
+    "priority": "high",
+    "category": "finance",
+    "keywords": ["invoice", "payment", "overdue", "hosting"],
+    "follow_up": true
+  },
+  {
+    "id": 2,
+    "subject": "Lunch catch-up next week",
+    "body": "Hey, are you free for lunch next Wednesday to chat about the conference? No rush if your schedule is packed.",
+    "sender": "friend@example.com",
+    "priority": "low",
+    "category": "personal",
+    "keywords": ["lunch", "conference", "schedule"],
+    "follow_up": false
+  },
+  {
+    "id": 3,
+    "subject": "Customer bug report on checkout flow",
+    "body": "A customer reported that the checkout button spins forever after entering card details. Can engineering investigate today?",
+    "sender": "support@shopco.com",
+    "priority": "high",
+    "category": "support",
+    "keywords": ["bug", "checkout", "customer", "investigate"],
+    "follow_up": true
+  },
+  {
+    "id": 4,
+    "subject": "Updated Q2 marketing deck",
+    "body": "Sharing the latest Q2 marketing deck for review before tomorrow's leadership sync. Feedback is welcome by 4 PM.",
+    "sender": "marketing@company.com",
+    "priority": "medium",
+    "category": "work",
+    "keywords": ["deck", "review", "feedback", "leadership"],
+    "follow_up": true
+  },
+  {
+    "id": 5,
+    "subject": "Password reset confirmation",
+    "body": "This is a confirmation that your account password was successfully reset. No action is required if this was you.",
+    "sender": "security@service.com",
+    "priority": "medium",
+    "category": "security",
+    "keywords": ["password", "reset", "confirmation", "account"],
+    "follow_up": false
+  },
+  {
+    "id": 6,
+    "subject": "Interview availability for backend role",
+    "body": "Thanks for applying. Please send your availability for a 45-minute technical interview sometime this week.",
+    "sender": "recruiter@startup.io",
+    "priority": "medium",
+    "category": "recruiting",
+    "keywords": ["interview", "availability", "technical", "week"],
+    "follow_up": true
+  },
+  {
+    "id": 7,
+    "subject": "Team offsite itinerary draft",
+    "body": "Attached is the first draft of the team offsite itinerary. Please check your travel preferences and dietary restrictions.",
+    "sender": "ops@company.com",
+    "priority": "low",
+    "category": "operations",
+    "keywords": ["offsite", "itinerary", "travel", "dietary"],
+    "follow_up": true
+  },
+  {
+    "id": 8,
+    "subject": "Production alert: API latency spike",
+    "body": "Monitoring detected API latency above threshold for the last 12 minutes in the primary region. Please acknowledge immediately.",
+    "sender": "alerts@monitoring.io",
+    "priority": "high",
+    "category": "operations",
+    "keywords": ["production", "alert", "latency", "acknowledge"],
+    "follow_up": true
+  },
+  {
+    "id": 9,
+    "subject": "Newsletter subscription welcome",
+    "body": "Welcome to our product newsletter. We'll send a monthly digest of feature releases and community highlights.",
+    "sender": "news@product.io",
+    "priority": "low",
+    "category": "newsletter",
+    "keywords": ["welcome", "newsletter", "monthly", "digest"],
+    "follow_up": false
+  },
+  {
+    "id": 10,
+    "subject": "Legal review needed for vendor agreement",
+    "body": "Please review the updated vendor agreement before signature. The supplier is asking for redlines by end of day Thursday.",
+    "sender": "legal@company.com",
+    "priority": "high",
+    "category": "legal",
+    "keywords": ["legal", "review", "agreement", "redlines"],
+    "follow_up": true
+  },
+  {
+    "id": 11,
+    "subject": "Your package has shipped",
+    "body": "Your package has shipped and is expected to arrive on Friday. Track shipment with the link in your account.",
+    "sender": "orders@retailer.com",
+    "priority": "low",
+    "category": "personal",
+    "keywords": ["package", "shipped", "track", "friday"],
+    "follow_up": false
+  },
+  {
+    "id": 12,
+    "subject": "Board meeting prep questions",
+    "body": "Can you send updated revenue assumptions and hiring numbers before the board prep session tomorrow morning?",
+    "sender": "ceo@company.com",
+    "priority": "high",
+    "category": "executive",
+    "keywords": ["board", "revenue", "hiring", "tomorrow"],
+    "follow_up": true
+  },
+  {
+    "id": 13,
+    "subject": "Vacation auto-reply notice",
+    "body": "I am out of office until Monday and will respond when I return. For urgent items contact the support desk.",
+    "sender": "colleague@company.com",
+    "priority": "low",
+    "category": "work",
+    "keywords": ["out of office", "vacation", "urgent", "support"],
+    "follow_up": false
+  },
+  {
+    "id": 14,
+    "subject": "Security audit questionnaire",
+    "body": "Our enterprise customer requires the attached security audit questionnaire completed before procurement can proceed.",
+    "sender": "sales@company.com",
+    "priority": "high",
+    "category": "security",
+    "keywords": ["security", "audit", "questionnaire", "procurement"],
+    "follow_up": true
+  },
+  {
+    "id": 15,
+    "subject": "Feature request from key account",
+    "body": "A strategic customer asked whether we can support bulk export filters in the next release. Please advise on feasibility.",
+    "sender": "accounts@company.com",
+    "priority": "medium",
+    "category": "product",
+    "keywords": ["feature request", "customer", "bulk export", "feasibility"],
+    "follow_up": true
+  }
+]
