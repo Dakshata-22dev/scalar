@@ -27,6 +27,13 @@ The follow_up value must be a boolean.
 """
 
 
+FALLBACK_ACTION = {
+    "classification": "work",
+    "reply": "Thanks, I received your email and will review it shortly.",
+    "follow_up": False,
+}
+
+
 def log_start(task: str, env: str, model: str) -> None:
     print(f"START task={json.dumps(task)} env={json.dumps(env)} model={json.dumps(model)}", flush=True)
 
@@ -69,29 +76,26 @@ def build_user_prompt(step: int, observation: Any, last_reward: float, history: 
 
 
 def parse_action(text: str) -> dict[str, Any]:
-    fallback = {
-        "classification": "work",
-        "reply": "Thanks, I received your email and will review it shortly.",
-        "follow_up": False,
-    }
-
     try:
         payload = json.loads(text)
     except json.JSONDecodeError:
-        return fallback
+        return FALLBACK_ACTION.copy()
 
-    classification = str(payload.get("classification", fallback["classification"])).strip() or fallback["classification"]
-    reply = str(payload.get("reply", fallback["reply"])).strip() or fallback["reply"]
-    follow_up = bool(payload.get("follow_up", fallback["follow_up"]))
+    classification = str(payload.get("classification", FALLBACK_ACTION["classification"])).strip()
+    reply = str(payload.get("reply", FALLBACK_ACTION["reply"])).strip()
+    follow_up = bool(payload.get("follow_up", FALLBACK_ACTION["follow_up"]))
 
     return {
-        "classification": classification,
-        "reply": reply,
+        "classification": classification or FALLBACK_ACTION["classification"],
+        "reply": reply or FALLBACK_ACTION["reply"],
         "follow_up": follow_up,
     }
 
 
-def get_model_action(client: OpenAI, step: int, observation: Any, last_reward: float, history: list[str]) -> dict[str, Any]:
+def get_model_action(client: OpenAI | None, step: int, observation: Any, last_reward: float, history: list[str]) -> dict[str, Any]:
+    if client is None:
+        return FALLBACK_ACTION.copy()
+
     user_prompt = build_user_prompt(step, observation, last_reward, history)
 
     try:
@@ -109,19 +113,12 @@ def get_model_action(client: OpenAI, step: int, observation: Any, last_reward: f
         return parse_action(text if text else "{}")
     except Exception as exc:
         print(f"[DEBUG] Model request failed: {exc}", flush=True)
-        return parse_action("{}")
+        return FALLBACK_ACTION.copy()
 
 
 async def main() -> None:
-    if not HF_TOKEN:
-        raise RuntimeError("HF_TOKEN must be set for inference.py.")
-
-    client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
-
-    from openenv import OpenEnv
-
-    env = await OpenEnv.from_docker_image(IMAGE_NAME)
-
+    client: OpenAI | None = None
+    env = None
     history: list[str] = []
     rewards: list[float] = []
     steps_taken = 0
@@ -131,19 +128,34 @@ async def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        result = await env.reset(task=TASK_NAME)
+        if HF_TOKEN:
+            client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+        else:
+            print("[DEBUG] HF_TOKEN not set; falling back to default actions.", flush=True)
+
+        from openenv import OpenEnv
+
+        env = await OpenEnv.from_docker_image(IMAGE_NAME)
+
+        result = await env.reset()
         last_reward = 0.0
 
         for step in range(1, MAX_STEPS + 1):
-            if result.done:
+            if getattr(result, "done", False):
                 break
 
             action_payload = get_model_action(client, step, result.observation, last_reward, history)
-
-            result = await env.step(action_payload)
-            reward = float(result.reward or 0.0)
-            done = bool(result.done)
             error = None
+
+            try:
+                result = await env.step(action_payload)
+                reward = float(getattr(result, "reward", 0.0) or 0.0)
+                done = bool(getattr(result, "done", False))
+            except Exception as exc:
+                reward = 0.0
+                done = True
+                error = str(exc)
+                print(f"[DEBUG] env.step() failed: {exc}", flush=True)
 
             rewards.append(reward)
             steps_taken = step
@@ -166,11 +178,14 @@ async def main() -> None:
         score = min(max(score, 0.0), 1.0)
         success = score >= SUCCESS_SCORE_THRESHOLD
 
+    except Exception as exc:
+        print(f"[DEBUG] inference main() failed: {exc}", flush=True)
     finally:
-        try:
-            await env.close()
-        except Exception as exc:
-            print(f"[DEBUG] env.close() error (container cleanup): {exc}", flush=True)
+        if env is not None:
+            try:
+                await env.close()
+            except Exception as exc:
+                print(f"[DEBUG] env.close() error (container cleanup): {exc}", flush=True)
         log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
