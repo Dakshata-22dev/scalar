@@ -35,20 +35,23 @@ FALLBACK_ACTION = {
 
 
 def log_start(task: str, env: str, model: str) -> None:
-    print(f"START task={json.dumps(task)} env={json.dumps(env)} model={json.dumps(model)}", flush=True)
+    print(
+        f"[START] task={json.dumps(task)} env={json.dumps(env)} model={json.dumps(model)}",
+        flush=True,
+    )
 
 
 def log_step(step: int, action: str, reward: float, done: bool, error: str | None) -> None:
     error_value = "null" if error is None else json.dumps(error)
     print(
-        f"STEP step={step} action={json.dumps(action)} reward={reward:.3f} done={str(done).lower()} error={error_value}",
+        f"[STEP] step={step} action={json.dumps(action)} reward={reward:.3f} done={str(done).lower()} error={error_value}",
         flush=True,
     )
 
 
 def log_end(success: bool, steps: int, score: float, rewards: list[float]) -> None:
     print(
-        f"END success={str(success).lower()} steps={steps} score={score:.3f} rewards={json.dumps(rewards)}",
+        f"[END] success={str(success).lower()} steps={steps} score={score:.3f} rewards={json.dumps(rewards)}",
         flush=True,
     )
 
