@@ -1,6 +1,6 @@
 from typing import Literal
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Body, FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from env.environment import EmailTriageEnv
@@ -9,7 +9,7 @@ from env.models import Action, Observation, StepResult
 
 class ResetRequest(BaseModel):
     task: Literal["easy", "medium", "hard"] = Field(
-        ..., description="Task difficulty to load."
+        "easy", description="Task difficulty to load."
     )
 
 
@@ -32,12 +32,13 @@ def root() -> dict[str, str]:
 
 
 @app.post("/reset", response_model=ResetResponse)
-def reset_environment(request: ResetRequest) -> ResetResponse:
+def reset_environment(request: ResetRequest | None = Body(default=None)) -> ResetResponse:
+    task = request.task if request is not None else "easy"
     try:
-        observation = env.reset(request.task)
+        observation = env.reset(task)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-    return ResetResponse(observation=observation, task=request.task)
+    return ResetResponse(observation=observation, task=task)
 
 
 @app.post("/step", response_model=StepResult)
