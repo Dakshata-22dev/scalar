@@ -12,13 +12,15 @@ MODEL_NAME = os.getenv("MODEL_NAME", "openai/gpt-4.1-mini")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 BENCHMARK = "email-triage-env"
-TASK_NAME = "easy"
+TASK_NAMES = ["easy", "medium", "hard"]
 TEMPERATURE = 0.2
 MAX_TOKENS = 250
 MAX_STEPS = 12
 MAX_TOTAL_REWARD = 5.0
 SUCCESS_SCORE_THRESHOLD = 0.6
 IMAGE_NAME = LOCAL_IMAGE_NAME or "email-triage-env:latest"
+MIN_SCORE_EPSILON = 0.001
+MAX_SCORE_EPSILON = 0.999
 
 SYSTEM_PROMPT = """You are an email triage agent.
 For each email, choose the best category, draft a concise professional reply, and decide whether follow-up is required.
@@ -62,9 +64,9 @@ def _safe_dump(value: Any) -> Any:
     return value
 
 
-def build_user_prompt(step: int, observation: Any, last_reward: float, history: list[str]) -> str:
+def build_user_prompt(task_name: str, step: int, observation: Any, last_reward: float, history: list[str]) -> str:
     payload = {
-        "task": getattr(observation, "task", TASK_NAME),
+        "task": getattr(observation, "task", task_name),
         "step": step,
         "last_reward": last_reward,
         "current_email": _safe_dump(getattr(observation, "current_email", None)),
@@ -105,8 +107,8 @@ def warmup_model(client: OpenAI) -> None:
     _ = completion.choices[0].message.content
 
 
-def get_model_action(client: OpenAI, step: int, observation: Any, last_reward: float, history: list[str]) -> dict[str, Any]:
-    user_prompt = build_user_prompt(step, observation, last_reward, history)
+def get_model_action(client: OpenAI, task_name: str, step: int, observation: Any, last_reward: float, history: list[str]) -> dict[str, Any]:
+    user_prompt = build_user_prompt(task_name, step, observation, last_reward, history)
 
     try:
         completion = client.chat.completions.create(
@@ -126,31 +128,32 @@ def get_model_action(client: OpenAI, step: int, observation: Any, last_reward: f
         return FALLBACK_ACTION.copy()
 
 
-async def main() -> None:
-    env = None
+def clamp_score(raw_score: float) -> float:
+    if raw_score <= 0.0:
+        return MIN_SCORE_EPSILON
+    if raw_score >= 1.0:
+        return MAX_SCORE_EPSILON
+    return raw_score
+
+
+async def run_task(env: Any, client: OpenAI, task_name: str) -> tuple[bool, int, float, list[float]]:
     history: list[str] = []
     rewards: list[float] = []
     steps_taken = 0
-    score = 0.0
+    score = MIN_SCORE_EPSILON
     success = False
 
-    log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
+    log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-        warmup_model(client)
-
-        from openenv import OpenEnv
-
-        env = await OpenEnv.from_docker_image(IMAGE_NAME)
-        result = await env.reset()
+        result = await env.reset(task=task_name)
         last_reward = 0.0
 
         for step in range(1, MAX_STEPS + 1):
             if getattr(result, "done", False):
                 break
 
-            action_payload = get_model_action(client, step, result.observation, last_reward, history)
+            action_payload = get_model_action(client, task_name, step, result.observation, last_reward, history)
             error = None
 
             try:
@@ -180,19 +183,40 @@ async def main() -> None:
             if done:
                 break
 
-        score = sum(rewards) / MAX_TOTAL_REWARD if MAX_TOTAL_REWARD > 0 else 0.0
-        score = min(max(score, 0.0), 1.0)
+        raw_score = sum(rewards) / MAX_TOTAL_REWARD if MAX_TOTAL_REWARD > 0 else MIN_SCORE_EPSILON
+        score = clamp_score(raw_score)
         success = score >= SUCCESS_SCORE_THRESHOLD
+        return success, steps_taken, score, rewards
+
+    finally:
+        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
+
+
+async def main() -> None:
+    env = None
+
+    try:
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+        warmup_model(client)
+
+        from openenv import OpenEnv
+
+        env = await OpenEnv.from_docker_image(IMAGE_NAME)
+
+        for task_name in TASK_NAMES:
+            await run_task(env, client, task_name)
 
     except Exception as exc:
         print(f"[DEBUG] inference main() failed: {exc}", flush=True)
+        for task_name in TASK_NAMES:
+            log_start(task=task_name, env=BENCHMARK, model=MODEL_NAME)
+            log_end(success=False, steps=0, score=MIN_SCORE_EPSILON, rewards=[])
     finally:
         if env is not None:
             try:
                 await env.close()
             except Exception as exc:
                 print(f"[DEBUG] env.close() error (container cleanup): {exc}", flush=True)
-        log_end(success=success, steps=steps_taken, score=score, rewards=rewards)
 
 
 if __name__ == "__main__":
