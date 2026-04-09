@@ -8,6 +8,7 @@ from openai import OpenAI
 
 API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
 MODEL_NAME = os.getenv("MODEL_NAME", "openai/gpt-4.1-mini")
+API_KEY = os.getenv("API_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
@@ -131,10 +132,11 @@ async def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        if HF_TOKEN:
-            client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
+        effective_api_key = API_KEY or HF_TOKEN
+        if effective_api_key:
+            client = OpenAI(base_url=API_BASE_URL, api_key=effective_api_key)
         else:
-            print("[DEBUG] HF_TOKEN not set; falling back to default actions.", flush=True)
+            print("[DEBUG] No API_KEY or HF_TOKEN set; falling back to default actions.", flush=True)
 
         from openenv import OpenEnv
 
