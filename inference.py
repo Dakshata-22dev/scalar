@@ -6,10 +6,9 @@ from typing import Any
 from openai import OpenAI
 
 
-API_BASE_URL = os.getenv("API_BASE_URL", "https://router.huggingface.co/v1")
+API_BASE_URL = os.environ["API_BASE_URL"]
+API_KEY = os.environ["API_KEY"]
 MODEL_NAME = os.getenv("MODEL_NAME", "openai/gpt-4.1-mini")
-API_KEY = os.getenv("API_KEY")
-HF_TOKEN = os.getenv("HF_TOKEN")
 LOCAL_IMAGE_NAME = os.getenv("LOCAL_IMAGE_NAME")
 
 BENCHMARK = "email-triage-env"
@@ -26,7 +25,6 @@ For each email, choose the best category, draft a concise professional reply, an
 Return only valid JSON with keys: classification, reply, follow_up.
 The follow_up value must be a boolean.
 """
-
 
 FALLBACK_ACTION = {
     "classification": "work",
@@ -94,19 +92,17 @@ def parse_action(text: str) -> dict[str, Any]:
 
 
 def warmup_model(client: OpenAI) -> None:
-    try:
-        client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "Respond with empty JSON."},
-                {"role": "user", "content": "{}"},
-            ],
-            temperature=0.0,
-            max_tokens=8,
-            stream=False,
-        )
-    except Exception as exc:
-        print(f"[DEBUG] Warmup request failed: {exc}", flush=True)
+    completion = client.chat.completions.create(
+        model=MODEL_NAME,
+        messages=[
+            {"role": "system", "content": "Respond with empty JSON."},
+            {"role": "user", "content": "{}"},
+        ],
+        temperature=0.0,
+        max_tokens=8,
+        stream=False,
+    )
+    _ = completion.choices[0].message.content
 
 
 def get_model_action(client: OpenAI, step: int, observation: Any, last_reward: float, history: list[str]) -> dict[str, Any]:
@@ -141,14 +137,7 @@ async def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        if API_KEY:
-            client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
-        elif HF_TOKEN:
-            print("[DEBUG] API_KEY not set; using HF_TOKEN fallback for local testing.", flush=True)
-            client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
-        else:
-            raise RuntimeError("API_KEY must be set by the evaluator, or HF_TOKEN must be set locally.")
-
+        client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
         warmup_model(client)
 
         from openenv import OpenEnv
