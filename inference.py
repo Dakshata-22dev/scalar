@@ -36,10 +36,7 @@ FALLBACK_ACTION = {
 
 
 def log_start(task: str, env: str, model: str) -> None:
-    print(
-        f"[START] task={json.dumps(task)} env={json.dumps(env)} model={json.dumps(model)}",
-        flush=True,
-    )
+    print(f"[START] task={json.dumps(task)} env={json.dumps(env)} model={json.dumps(model)}", flush=True)
 
 
 def log_step(step: int, action: str, reward: float, done: bool, error: str | None) -> None:
@@ -96,10 +93,23 @@ def parse_action(text: str) -> dict[str, Any]:
     }
 
 
-def get_model_action(client: OpenAI | None, step: int, observation: Any, last_reward: float, history: list[str]) -> dict[str, Any]:
-    if client is None:
-        return FALLBACK_ACTION.copy()
+def warmup_model(client: OpenAI) -> None:
+    try:
+        client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": "Respond with empty JSON."},
+                {"role": "user", "content": "{}"},
+            ],
+            temperature=0.0,
+            max_tokens=8,
+            stream=False,
+        )
+    except Exception as exc:
+        print(f"[DEBUG] Warmup request failed: {exc}", flush=True)
 
+
+def get_model_action(client: OpenAI, step: int, observation: Any, last_reward: float, history: list[str]) -> dict[str, Any]:
     user_prompt = build_user_prompt(step, observation, last_reward, history)
 
     try:
@@ -121,7 +131,6 @@ def get_model_action(client: OpenAI | None, step: int, observation: Any, last_re
 
 
 async def main() -> None:
-    client: OpenAI | None = None
     env = None
     history: list[str] = []
     rewards: list[float] = []
@@ -132,16 +141,19 @@ async def main() -> None:
     log_start(task=TASK_NAME, env=BENCHMARK, model=MODEL_NAME)
 
     try:
-        effective_api_key = API_KEY or HF_TOKEN
-        if effective_api_key:
-            client = OpenAI(base_url=API_BASE_URL, api_key=effective_api_key)
+        if API_KEY:
+            client = OpenAI(base_url=API_BASE_URL, api_key=API_KEY)
+        elif HF_TOKEN:
+            print("[DEBUG] API_KEY not set; using HF_TOKEN fallback for local testing.", flush=True)
+            client = OpenAI(base_url=API_BASE_URL, api_key=HF_TOKEN)
         else:
-            print("[DEBUG] No API_KEY or HF_TOKEN set; falling back to default actions.", flush=True)
+            raise RuntimeError("API_KEY must be set by the evaluator, or HF_TOKEN must be set locally.")
+
+        warmup_model(client)
 
         from openenv import OpenEnv
 
         env = await OpenEnv.from_docker_image(IMAGE_NAME)
-
         result = await env.reset()
         last_reward = 0.0
 
